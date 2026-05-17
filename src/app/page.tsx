@@ -2,7 +2,7 @@
 
 import { KeyboardEvent, useState } from "react";
 import { useTxStore } from "@/stores/fileStore";
-import { ParsedTranscript } from "@/lib/types";
+import { ParsedTranscript, RequirementCategory, RequirementsResponse } from "@/lib/types";
 
 type TermPart = "f" | "w" | "s" | "sm";
 
@@ -176,7 +176,16 @@ function CourseChip({ course, onSave }: CourseChipProps) {
 }
 
 export default function Home() {
-  const { file, setFile, data, setData, clear } = useTxStore();
+  const {
+    file,
+    setFile,
+    data,
+    setData,
+    requirements,
+    setRequirements,
+    clear,
+  } = useTxStore();
+  const [isLoadingRequirements, setIsLoadingRequirements] = useState(false);
 
   const processFile = (file: File | undefined) => {
     if (file == undefined) alert("Please upload a file");
@@ -211,6 +220,42 @@ export default function Home() {
   const handleClear = () => {
     useTxStore.persist.clearStorage();
     clear();
+  };
+
+  const handleFetchRequirements = async () => {
+    if (!data) {
+      alert("Parse a transcript first");
+      return;
+    }
+
+    setIsLoadingRequirements(true);
+
+    try {
+      const response = await fetch("http://localhost:3001/api/requirements", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          school: data.school,
+          major: data.major,
+          admitTerm: data.admitTerm,
+          semesters: data.semesters,
+        }),
+      });
+
+      const payload: RequirementsResponse = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error);
+      }
+
+      setRequirements(payload);
+    } catch (error) {
+      alert(error);
+    } finally {
+      setIsLoadingRequirements(false);
+    }
   };
 
   const updateField = (
@@ -259,6 +304,43 @@ export default function Home() {
 
   const semesterRows = data ? getSemesterRows(data) : [];
 
+  const renderCategory = (category: RequirementCategory) => (
+    <div
+      key={category.id}
+      className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-semibold text-slate-900">{category.label}</p>
+          <p className="text-sm text-slate-500">
+            Remaining: {category.remainingCount}
+          </p>
+        </div>
+      </div>
+
+      {category.rule && (
+        <p className="mt-3 text-sm text-slate-600">{category.rule}</p>
+      )}
+
+      {category.note && (
+        <p className="mt-2 text-sm text-slate-500">{category.note}</p>
+      )}
+
+      {category.options && category.options.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {category.options.map((course) => (
+            <span
+              key={`${category.id}-${course}`}
+              className="rounded-full border border-slate-300 bg-white px-3 py-1 font-mono text-sm text-slate-700"
+            >
+              {course}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
@@ -280,6 +362,16 @@ export default function Home() {
               className="rounded-xl bg-slate-900 px-4 py-2 text-white transition hover:bg-slate-700"
             >
               Parse transcript
+            </button>
+            <button
+              type="button"
+              onClick={handleFetchRequirements}
+              disabled={!data || isLoadingRequirements}
+              className="rounded-xl border border-slate-300 px-4 py-2 text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isLoadingRequirements
+                ? "Loading remaining courses..."
+                : "Show remaining courses"}
             </button>
             <button
               type="button"
@@ -416,6 +508,128 @@ export default function Home() {
                   </div>
                 ))}
               </div>
+            </section>
+
+            <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-lg font-semibold">Remaining requirements</p>
+                  <p className="text-sm text-slate-600">
+                    This uses the current edited transcript data, not just the original parse result.
+                  </p>
+                </div>
+              </div>
+
+              {!requirements && (
+                <div className="mt-4 rounded-2xl border border-dashed border-slate-300 px-4 py-5 text-sm text-slate-500">
+                  No requirement evaluation yet. Click &quot;Show remaining courses&quot; after parsing or editing your transcript.
+                </div>
+              )}
+
+              {requirements && (
+                <div className="mt-4 flex flex-col gap-6">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-sm font-medium text-slate-500">
+                        Requirement buckets left
+                      </p>
+                      <p className="mt-2 text-3xl font-semibold text-slate-900">
+                        {requirements.summary.remainingBucketCount}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-sm font-medium text-slate-500">
+                        Total remaining course slots
+                      </p>
+                      <p className="mt-2 text-3xl font-semibold text-slate-900">
+                        {requirements.summary.totalRemainingCourseCount}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-base font-semibold text-slate-900">
+                      School requirements
+                    </p>
+                    <div className="mt-3 grid gap-3">
+                      {requirements.remaining.school.length > 0 ? (
+                        requirements.remaining.school.map(renderCategory)
+                      ) : (
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-600">
+                          No remaining school-level requirements.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-base font-semibold text-slate-900">
+                      Major requirements
+                    </p>
+                    <div className="mt-3 grid gap-3">
+                      {requirements.remaining.major.length > 0 ? (
+                        requirements.remaining.major.map(renderCategory)
+                      ) : (
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-600">
+                          No remaining major requirements.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-base font-semibold text-slate-900">
+                      Recommendations
+                    </p>
+                    <div className="mt-3 grid gap-3">
+                      {requirements.recommendations.length > 0 ? (
+                        requirements.recommendations.map((recommendation) => (
+                          <div
+                            key={recommendation.id}
+                            className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                          >
+                            <p className="font-semibold text-slate-900">
+                              {recommendation.label}
+                            </p>
+                            <p className="mt-1 text-sm text-slate-500">
+                              Remaining: {recommendation.remainingCount}
+                            </p>
+
+                            {recommendation.rule && (
+                              <p className="mt-3 text-sm text-slate-600">
+                                {recommendation.rule}
+                              </p>
+                            )}
+
+                            {recommendation.note && (
+                              <p className="mt-2 text-sm text-slate-500">
+                                {recommendation.note}
+                              </p>
+                            )}
+
+                            {recommendation.options.length > 0 && (
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                {recommendation.options.map((course) => (
+                                  <span
+                                    key={`${recommendation.id}-${course}`}
+                                    className="rounded-full border border-slate-300 bg-white px-3 py-1 font-mono text-sm text-slate-700"
+                                  >
+                                    {course}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-600">
+                          No recommendations. All tracked requirements are satisfied.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </section>
           </div>
         )}

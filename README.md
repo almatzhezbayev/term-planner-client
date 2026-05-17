@@ -1,36 +1,171 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# term-planner-client
 
-## Getting Started
+Next.js frontend for uploading a transcript, editing the parsed result, and viewing remaining requirements.
 
-First, run the development server:
+## Run
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The app runs on `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Current Flow
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. User selects a transcript PDF.
+2. Frontend sends the raw file to the backend parse endpoint.
+3. Parsed transcript data is rendered in an editable semester grid.
+4. Parsed data is persisted in local storage so it survives reload.
+5. User can request remaining requirements from the current edited transcript state.
 
-## Learn More
+## API Calls
 
-To learn more about Next.js, take a look at the following resources:
+### `POST http://localhost:3001/api/parse`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Called from `src/app/page.tsx`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Method: `POST`
+- Headers:
 
-## Deploy on Vercel
+```http
+Content-Type: application/pdf
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Body: the selected PDF file as raw binary
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Expected response:
+
+```json
+{
+  "school": "science",
+  "major": "math-cs",
+  "admitTerm": "22-23f",
+  "semesters": {
+    "22-23f": ["CHEM1020", "CHEM1050", "MATH1012"]
+  }
+}
+```
+
+### `POST http://localhost:3001/api/requirements`
+
+Also called from `src/app/page.tsx`.
+
+- Method: `POST`
+- Headers:
+
+```http
+Content-Type: application/json
+```
+
+- Body:
+
+```json
+{
+  "school": "science",
+  "major": "math-cs",
+  "admitTerm": "22-23f",
+  "semesters": {
+    "22-23f": ["CHEM1020", "CHEM1050", "MATH1012"]
+  }
+}
+```
+
+This endpoint is called only when the user clicks `Show remaining courses`, so the request reflects any manual edits made in the UI after parsing.
+
+## State Management
+
+State is managed with Zustand in `src/stores/fileStore.ts` and persisted via `zustand/middleware/persist`.
+
+Persisted storage key:
+
+- `term-planner-storage`
+
+Persisted shape:
+
+```json
+{
+  "state": {
+    "data": {
+      "school": "science",
+      "major": "math-cs",
+      "admitTerm": "22-23f",
+      "semesters": {
+        "22-23f": ["CHEM1020", "CHEM1050", "MATH1012"]
+      }
+    },
+    "requirements": {
+      "summary": {
+        "remainingBucketCount": 4,
+        "totalRemainingCourseCount": 6
+      },
+      "remaining": {
+        "school": [],
+        "major": []
+      },
+      "recommendations": []
+    }
+  },
+  "version": 0
+}
+```
+
+Store fields:
+
+- `file: File | undefined`
+  - Current uploaded file object
+  - Not persisted
+- `data: ParsedTranscript | undefined`
+  - Parsed transcript metadata and semester-course mapping
+  - Persisted
+- `requirements: RequirementsResponse | undefined`
+  - Remaining requirement result returned by the backend
+  - Persisted
+
+Important behavior:
+
+- `setData(...)` clears `requirements`, because remaining-course results become stale whenever transcript data changes.
+- `clear()` removes both parsed transcript data and requirement results.
+
+## Data Shapes
+
+### `ParsedTranscript`
+
+```ts
+{
+  school: string;
+  major: string;
+  admitTerm: string;
+  semesters: Record<string, string[]>;
+}
+```
+
+### `RequirementsResponse`
+
+```ts
+{
+  summary: {
+    remainingBucketCount: number;
+    totalRemainingCourseCount: number;
+  };
+  remaining: {
+    school: RequirementCategory[];
+    major: RequirementCategory[];
+  };
+  recommendations: Array<{
+    id: string;
+    label: string;
+    remainingCount: number;
+    options: string[];
+    rule?: string;
+    note?: string;
+  }>;
+}
+```
+
+## UI Notes
+
+- Semester keys are sorted with custom logic so academic years render from fall to summer.
+- Empty terms between first and last detected semester are expanded in the grid.
+- Course chips are editable on double click.
+- Removing all text from a course chip deletes that course entry from the semester.
