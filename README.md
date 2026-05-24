@@ -101,6 +101,7 @@ Persisted shape:
       },
       "remaining": {
         "school": [],
+        "commonCore": [],
         "major": []
       },
       "recommendations": []
@@ -150,6 +151,7 @@ Important behavior:
   };
   remaining: {
     school: RequirementCategory[];
+    commonCore: RequirementCategory[];
     major: RequirementCategory[];
   };
   recommendations: Array<{

@@ -23,6 +23,7 @@ export interface RequirementsResponse {
   };
   remaining: {
     school: RequirementCategory[];
+    commonCore: RequirementCategory[];
     major: RequirementCategory[];
   };
   recommendations: Array<{

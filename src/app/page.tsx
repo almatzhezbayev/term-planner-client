@@ -304,6 +304,11 @@ export default function Home() {
 
   const semesterRows = data ? getSemesterRows(data) : [];
 
+  const schoolRequirements = requirements?.remaining.school ?? [];
+  const commonCoreRequirements = requirements?.remaining.commonCore ?? [];
+  const majorRequirements = requirements?.remaining.major ?? [];
+  const remainingCourses = requirements?.recommendations ?? [];
+
   const renderCategory = (category: RequirementCategory) => (
     <div
       key={category.id}
@@ -338,6 +343,24 @@ export default function Home() {
           ))}
         </div>
       )}
+    </div>
+  );
+
+  const renderRequirementSection = (
+    title: string,
+    categories: RequirementCategory[],
+  ) => (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <p className="text-base font-semibold text-slate-900">{title}</p>
+      <div className="mt-3 flex flex-col gap-3">
+        {categories.length > 0 ? (
+          categories.map(renderCategory)
+        ) : (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-5 text-sm font-medium text-emerald-700">
+            Congrats you&apos;re done!
+          </div>
+        )}
+      </div>
     </div>
   );
 
@@ -528,62 +551,27 @@ export default function Home() {
 
               {requirements && (
                 <div className="mt-4 flex flex-col gap-6">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-sm font-medium text-slate-500">
-                        Requirement buckets left
-                      </p>
-                      <p className="mt-2 text-3xl font-semibold text-slate-900">
-                        {requirements.summary.remainingBucketCount}
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-sm font-medium text-slate-500">
-                        Total remaining course slots
-                      </p>
-                      <p className="mt-2 text-3xl font-semibold text-slate-900">
-                        {requirements.summary.totalRemainingCourseCount}
-                      </p>
-                    </div>
-                  </div>
-
                   <div>
-                    <p className="text-base font-semibold text-slate-900">
-                      School requirements
-                    </p>
-                    <div className="mt-3 grid gap-3">
-                      {requirements.remaining.school.length > 0 ? (
-                        requirements.remaining.school.map(renderCategory)
-                      ) : (
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-600">
-                          No remaining school-level requirements.
-                        </div>
+                    <div className="grid gap-4 xl:grid-cols-3">
+                      {renderRequirementSection(
+                        "School",
+                        schoolRequirements,
+                      )}
+                      {renderRequirementSection("Major", majorRequirements)}
+                      {renderRequirementSection(
+                        "Common core",
+                        commonCoreRequirements,
                       )}
                     </div>
                   </div>
 
                   <div>
                     <p className="text-base font-semibold text-slate-900">
-                      Major requirements
+                      Remaining courses
                     </p>
                     <div className="mt-3 grid gap-3">
-                      {requirements.remaining.major.length > 0 ? (
-                        requirements.remaining.major.map(renderCategory)
-                      ) : (
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-600">
-                          No remaining major requirements.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <p className="text-base font-semibold text-slate-900">
-                      Recommendations
-                    </p>
-                    <div className="mt-3 grid gap-3">
-                      {requirements.recommendations.length > 0 ? (
-                        requirements.recommendations.map((recommendation) => (
+                      {remainingCourses.length > 0 ? (
+                        remainingCourses.map((recommendation) => (
                           <div
                             key={recommendation.id}
                             className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
@@ -623,7 +611,7 @@ export default function Home() {
                         ))
                       ) : (
                         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-600">
-                          No recommendations. All tracked requirements are satisfied.
+                          No remaining courses. All tracked requirements are satisfied.
                         </div>
                       )}
                     </div>
