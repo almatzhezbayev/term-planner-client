@@ -20,6 +20,8 @@ const TERM_LABELS: Record<TermPart, string> = {
   sm: "Summer",
 };
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+
 function parseTermKey(termKey: string): ParsedTermKey | null {
   const match = termKey.match(/^(\d{2})-(\d{2})(f|w|s|sm)$/);
   if (!match) return null;
@@ -197,7 +199,7 @@ export default function Home() {
 
   const handleParseTranscript = async () => {
     try {
-      const response = await fetch("http://localhost:3001/api/parse", {
+      const response = await fetch(`${API_BASE_URL}/api/parse`, {
         method: "POST",
         headers: {
           "Content-Type": "application/pdf",
@@ -231,7 +233,7 @@ export default function Home() {
     setIsLoadingRequirements(true);
 
     try {
-      const response = await fetch("http://localhost:3001/api/requirements", {
+      const response = await fetch(`${API_BASE_URL}/api/requirements`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
