@@ -80,7 +80,7 @@ function buildTermKey(startYear: number, term: TermPart) {
 }
 
 function getDefaultAdmitTerm() {
-  return "23-24f";
+  return "22-23f";
 }
 
 function getExpandedSemesterKeys(data: ParsedTranscript) {
@@ -128,7 +128,7 @@ function formatAcademicYear(startYear: number) {
 }
 
 function getReqYear(admitTerm: string) {
-  return admitTerm.slice(0, -1);
+  return admitTerm.slice(0, 5);
 }
 
 function getMajorOptions(school: string, admitTerm: string) {
@@ -158,6 +158,15 @@ function getSemesterRows(data: ParsedTranscript) {
   return [...rows.entries()]
     .sort(([a], [b]) => a - b)
     .map(([startYear, semesters]) => ({ startYear, semesters }));
+}
+
+function buildAcademicYearSemesters(startYear: number) {
+  return {
+    f: buildTermKey(startYear, "f"),
+    w: buildTermKey(startYear, "w"),
+    s: buildTermKey(startYear, "s"),
+    sm: buildTermKey(startYear, "sm"),
+  };
 }
 
 interface CourseChipProps {
@@ -383,6 +392,54 @@ export default function Home() {
     });
   };
 
+  const addAcademicYear = () => {
+    if (!data) return;
+
+    const rows = getSemesterRows(data);
+    const nextStartYear =
+      rows.length > 0 ? rows[rows.length - 1].startYear + 1 : 22;
+    const nextSemesters = buildAcademicYearSemesters(nextStartYear);
+
+    setData({
+      ...data,
+      semesters: {
+        ...data.semesters,
+        [nextSemesters.f]: data.semesters[nextSemesters.f] ?? [],
+        [nextSemesters.w]: data.semesters[nextSemesters.w] ?? [],
+        [nextSemesters.s]: data.semesters[nextSemesters.s] ?? [],
+        [nextSemesters.sm]: data.semesters[nextSemesters.sm] ?? [],
+      },
+    });
+  };
+
+  const removeAcademicYear = (startYear: number) => {
+    if (!data) return;
+
+    const rows = getSemesterRows(data);
+    if (rows.length <= 1) return;
+
+    const yearSemesters = buildAcademicYearSemesters(startYear);
+    const nextSemesters = { ...data.semesters };
+
+    for (const semesterKey of Object.values(yearSemesters)) {
+      delete nextSemesters[semesterKey];
+    }
+
+    const removedYearContainsAdmitTerm = Object.values(yearSemesters).includes(
+      data.admitTerm,
+    );
+    const remainingRows = rows.filter((row) => row.startYear !== startYear);
+    const nextAdmitTerm = removedYearContainsAdmitTerm
+      ? buildAcademicYearSemesters(remainingRows[0].startYear).f
+      : data.admitTerm;
+
+    setData({
+      ...data,
+      admitTerm: nextAdmitTerm,
+      semesters: nextSemesters,
+    });
+  };
+
   const semesterRows = data ? getSemesterRows(data) : [];
   const currentMajorOptions = data
     ? getMajorOptions(data.school, data.admitTerm)
@@ -565,6 +622,13 @@ export default function Home() {
                     Double click a course chip to edit it.
                   </p>
                 </div>
+                <button
+                  type="button"
+                  onClick={addAcademicYear}
+                  className="rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
+                >
+                  Add academic year
+                </button>
               </div>
 
               <div className="mt-4 hidden grid-cols-4 gap-4 text-sm font-medium text-slate-500 lg:grid">
@@ -582,6 +646,14 @@ export default function Home() {
                       <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
                         Academic year {formatAcademicYear(row.startYear)}
                       </p>
+                      <button
+                        type="button"
+                        onClick={() => removeAcademicYear(row.startYear)}
+                        disabled={semesterRows.length <= 1}
+                        className="rounded-xl border border-slate-300 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Remove year
+                      </button>
                     </div>
 
                     <div className="grid gap-4 lg:grid-cols-4">
