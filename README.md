@@ -2,6 +2,14 @@
 
 Next.js frontend for uploading a transcript, editing the parsed result, and viewing remaining requirements.
 
+## Hosted App
+
+Live app:
+
+`https://term-planner-client.onrender.com/`
+
+The project is already hosted on Render. Because the backend is running on Render's free tier, the first request after a period of inactivity may take some time while the backend boots back up.
+
 ## Run
 
 ```bash
