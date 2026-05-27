@@ -2,7 +2,11 @@
 
 import { KeyboardEvent, useState } from "react";
 import { useTxStore } from "@/stores/fileStore";
-import { ParsedTranscript, RequirementCategory, RequirementsResponse } from "@/lib/types";
+import {
+  ParsedTranscript,
+  RequirementCategory,
+  RequirementsResponse,
+} from "@/lib/types";
 
 type TermPart = "f" | "w" | "s" | "sm";
 type SupportedSchool = "science";
@@ -21,16 +25,14 @@ const SCHOOL_MAJOR_OPTIONS: Record<
 > = {
   science: {
     "22-23": [
-      { value: "math-cs", label: "Mathematics - Computer Science Track" },
+      { value: "math-cs", label: "Mathematics - CS Track" },
       { value: "phys", label: "Physics" },
       { value: "chem", label: "Chemistry" },
       { value: "bisc", label: "Biological Science" },
       { value: "biot", label: "Biotechnology" },
       { value: "bcb", label: "Biochemistry and Cell Biology" },
     ],
-    "23-24": [
-      { value: "math-cs", label: "Mathematics - Computer Science Track" },
-    ],
+    "23-24": [{ value: "math-cs", label: "Mathematics - CS Track" }],
   },
 };
 
@@ -226,15 +228,8 @@ function CourseChip({ course, onSave }: CourseChipProps) {
 }
 
 export default function Home() {
-  const {
-    file,
-    setFile,
-    data,
-    setData,
-    requirements,
-    setRequirements,
-    clear,
-  } = useTxStore();
+  const { file, setFile, data, setData, requirements, setRequirements, clear } =
+    useTxStore();
   const [isLoadingRequirements, setIsLoadingRequirements] = useState(false);
 
   const processFile = (file: File | undefined) => {
@@ -718,16 +713,20 @@ export default function Home() {
             <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-lg font-semibold">Remaining requirements</p>
+                  <p className="text-lg font-semibold">
+                    Remaining requirements
+                  </p>
                   <p className="text-sm text-slate-600">
-                    This uses the current edited transcript data, not just the original parse result.
+                    This uses the current edited transcript data, not just the
+                    original parse result.
                   </p>
                 </div>
               </div>
 
               {!requirements && (
                 <div className="mt-4 rounded-2xl border border-dashed border-slate-300 px-4 py-5 text-sm text-slate-500">
-                  No requirement evaluation yet. Click &quot;Show remaining courses&quot; after parsing or editing your transcript.
+                  No requirement evaluation yet. Click &quot;Show remaining
+                  courses&quot; after parsing or editing your transcript.
                 </div>
               )}
 
@@ -735,10 +734,7 @@ export default function Home() {
                 <div className="mt-4 flex flex-col gap-6">
                   <div>
                     <div className="grid gap-4 xl:grid-cols-3">
-                      {renderRequirementSection(
-                        "School",
-                        schoolRequirements,
-                      )}
+                      {renderRequirementSection("School", schoolRequirements)}
                       {renderRequirementSection("Major", majorRequirements)}
                       {renderRequirementSection(
                         "Common core",
@@ -793,7 +789,8 @@ export default function Home() {
                         ))
                       ) : (
                         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-600">
-                          No remaining courses. All tracked requirements are satisfied.
+                          No remaining courses. All tracked requirements are
+                          satisfied.
                         </div>
                       )}
                     </div>
