@@ -5,8 +5,34 @@ import { useTxStore } from "@/stores/fileStore";
 import { ParsedTranscript, RequirementCategory, RequirementsResponse } from "@/lib/types";
 
 type TermPart = "f" | "w" | "s" | "sm";
+type SupportedSchool = "science";
 
 const TERM_ORDER: TermPart[] = ["f", "w", "s", "sm"];
+const SUPPORTED_SCHOOLS: Array<{ value: SupportedSchool; label: string }> = [
+  { value: "science", label: "School of Science" },
+];
+const SUPPORTED_YEAR_OPTIONS = ["22-23", "23-24"];
+const SUPPORTED_ADMIT_TERMS = SUPPORTED_YEAR_OPTIONS.flatMap((year) =>
+  TERM_ORDER.map((term) => `${year}${term}`),
+);
+const SCHOOL_MAJOR_OPTIONS: Record<
+  SupportedSchool,
+  Record<string, Array<{ value: string; label: string }>>
+> = {
+  science: {
+    "22-23": [
+      { value: "math-cs", label: "Mathematics - Computer Science Track" },
+      { value: "phys", label: "Physics" },
+      { value: "chem", label: "Chemistry" },
+      { value: "bisc", label: "Biological Science" },
+      { value: "biot", label: "Biotechnology" },
+      { value: "bcb", label: "Biochemistry and Cell Biology" },
+    ],
+    "23-24": [
+      { value: "math-cs", label: "Mathematics - Computer Science Track" },
+    ],
+  },
+};
 
 interface ParsedTermKey {
   startYear: number;
@@ -53,6 +79,10 @@ function buildTermKey(startYear: number, term: TermPart) {
   )}${term}`;
 }
 
+function getDefaultAdmitTerm() {
+  return "23-24f";
+}
+
 function getExpandedSemesterKeys(data: ParsedTranscript) {
   const existingKeys = Object.keys(data.semesters).filter(
     (key) => parseTermKey(key) !== null,
@@ -95,6 +125,15 @@ function formatSemesterTitle(termKey: string) {
 function formatAcademicYear(startYear: number) {
   const endYear = (startYear + 1) % 100;
   return `${String(startYear).padStart(2, "0")}-${String(endYear).padStart(2, "0")}`;
+}
+
+function getReqYear(admitTerm: string) {
+  return admitTerm.slice(0, -1);
+}
+
+function getMajorOptions(school: string, admitTerm: string) {
+  if (school !== "science") return [];
+  return SCHOOL_MAJOR_OPTIONS.science[getReqYear(admitTerm)] ?? [];
 }
 
 function getSemesterRows(data: ParsedTranscript) {
@@ -224,6 +263,21 @@ export default function Home() {
     clear();
   };
 
+  const handleEnterCoursesManually = () => {
+    const admitTerm = getDefaultAdmitTerm();
+    const school = "science";
+    const major = getMajorOptions(school, admitTerm)[0]?.value ?? "";
+
+    setData({
+      school,
+      major,
+      admitTerm,
+      semesters: {
+        [admitTerm]: [],
+      },
+    });
+  };
+
   const handleFetchRequirements = async () => {
     if (!data) {
       alert("Parse a transcript first");
@@ -265,6 +319,31 @@ export default function Home() {
     value: string,
   ) => {
     if (!data) return;
+
+    if (field === "school") {
+      const nextMajorOptions = getMajorOptions(value, data.admitTerm);
+      const nextMajor = nextMajorOptions.some(
+        (option) => option.value === data.major,
+      )
+        ? data.major
+        : (nextMajorOptions[0]?.value ?? "");
+
+      setData({ ...data, school: value, major: nextMajor });
+      return;
+    }
+
+    if (field === "admitTerm") {
+      const nextMajorOptions = getMajorOptions(data.school, value);
+      const nextMajor = nextMajorOptions.some(
+        (option) => option.value === data.major,
+      )
+        ? data.major
+        : (nextMajorOptions[0]?.value ?? "");
+
+      setData({ ...data, admitTerm: value, major: nextMajor });
+      return;
+    }
+
     setData({ ...data, [field]: value });
   };
 
@@ -305,6 +384,9 @@ export default function Home() {
   };
 
   const semesterRows = data ? getSemesterRows(data) : [];
+  const currentMajorOptions = data
+    ? getMajorOptions(data.school, data.admitTerm)
+    : [];
 
   const schoolRequirements = requirements?.remaining.school ?? [];
   const commonCoreRequirements = requirements?.remaining.commonCore ?? [];
@@ -373,7 +455,8 @@ export default function Home() {
           <p className="text-4xl font-semibold tracking-tight">term planner</p>
           <p className="mt-2 text-base text-slate-600">
             Upload your transcript PDF, parse it, then edit the result directly
-            in the grid.
+            in the grid. If you prefer not to upload a transcript, you can also
+            enter courses manually.
           </p>
 
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -387,6 +470,13 @@ export default function Home() {
               className="rounded-xl bg-slate-900 px-4 py-2 text-white transition hover:bg-slate-700"
             >
               Parse transcript
+            </button>
+            <button
+              type="button"
+              onClick={handleEnterCoursesManually}
+              className="rounded-xl border border-slate-300 px-4 py-2 text-slate-700 transition hover:bg-slate-100"
+            >
+              Enter courses manually
             </button>
             <button
               type="button"
@@ -417,33 +507,51 @@ export default function Home() {
                   <span className="text-sm font-medium text-slate-600">
                     School
                   </span>
-                  <input
+                  <select
                     value={data.school}
                     onChange={(e) => updateField("school", e.target.value)}
                     className="rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-slate-500"
-                  />
+                  >
+                    {SUPPORTED_SCHOOLS.map((school) => (
+                      <option key={school.value} value={school.value}>
+                        {school.label}
+                      </option>
+                    ))}
+                  </select>
                 </label>
 
                 <label className="flex flex-col gap-2">
                   <span className="text-sm font-medium text-slate-600">
                     Major
                   </span>
-                  <input
+                  <select
                     value={data.major}
                     onChange={(e) => updateField("major", e.target.value)}
                     className="rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-slate-500"
-                  />
+                  >
+                    {currentMajorOptions.map((major) => (
+                      <option key={major.value} value={major.value}>
+                        {major.label}
+                      </option>
+                    ))}
+                  </select>
                 </label>
 
                 <label className="flex flex-col gap-2">
                   <span className="text-sm font-medium text-slate-600">
                     Admission term
                   </span>
-                  <input
+                  <select
                     value={data.admitTerm}
                     onChange={(e) => updateField("admitTerm", e.target.value)}
                     className="rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-slate-500"
-                  />
+                  >
+                    {SUPPORTED_ADMIT_TERMS.map((admitTerm) => (
+                      <option key={admitTerm} value={admitTerm}>
+                        {admitTerm}
+                      </option>
+                    ))}
+                  </select>
                 </label>
               </div>
             </section>
